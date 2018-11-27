@@ -23,13 +23,13 @@ OCR_model <- function(word, data){
   }
   
   # Edits zero or one letter away from "word"
-  Replaces1 <- function(word = FALSE) {
+  Replaces1 <- function(word, range) {
     N <- nchar(word) 
     out <- list()
     for (letter in letters) {
       out[[letter]] <- rep(word, N)
-      for (i in 1:N) {
-        out[[letter]][i] <- sub(substr(word,i,i),letter, word)
+      for (i in range) {
+        substr(out[[letter]][i], i, i) <- letter
       }
     }
     out <- unique(unlist(out))
@@ -37,18 +37,12 @@ OCR_model <- function(word, data){
   }
   
   # Edits zero, one or two letters away from "word"
-  Replaces2 <- function(word = FALSE) {
-    N <- nchar(word) 
-    out <- c()
-    word.new <- Replaces1(word)
-    for(w in word.new){
-      for(l in letters){
-        for(i in which(unlist(strsplit(word,"")) %in% unlist(strsplit(word.new,"")))){
-          out <- c(out,sub(substr(word,i,i),l, w))
-        }
-      }
-    }
-    out <- unique(out)
+  Replaces2 <- function(word) {
+    N <- nchar(word)
+    word.new <- Replaces1(word, 1:N)
+    out <- lapply(word.new, Replaces1,
+                  which(unlist(strsplit(word,"")) %in% unlist(strsplit(w,""))))
+    out <- unique(unlist(out))
     return(out)
   }
   
@@ -69,14 +63,21 @@ OCR_model <- function(word, data){
     N <- sum(word_ct)
     word.number <- which(known_words == word)
     count <- word_ct[word.number]
-    pval <- count/N
-    return(pval)
+    prob <- count/N
+    return(prob)
   }
   
   # Output function
   Output <- function(word, known_words, word_ct){
     candidates <- Candidates(word, known_words)
-    probabilities <- sapply(candidates, Probability, known_words, word_ct)
+    if(length(candidates) > 0){
+      probabilities <- sapply(candidates, Probability, known_words, word_ct)
+    }
+    else
+    {
+      probabilities <- 1
+      names(probabilities) <- word
+    }
   return(probabilities)
   }
     
