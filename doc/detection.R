@@ -23,21 +23,23 @@ ground_truth_onelines <- lapply(ground_truth_file_path,get_text)
 ### clean the texts and sort the words by letter length
 ground_truth_words_cleaned <- unlist(lapply(ground_truth_onelines,clean_text))
 ground_truth_by_length <- sort_by_length(ground_truth_words_cleaned)
-
+save(ground_truth_by_length, file = "../output/ground_truth_by_length.Rdata")
 ### bigramize the word from word length >= 3
 ### should be modified to include word length <= 2
 num_len <- length(ground_truth_by_length)
 ground_truth_bigram_from3 <- lapply(ground_truth_by_length[3:num_len],bigramize)
-save(ground_truth_bigram_from3,file="../output/ground_truth_bigram_from3.Rdata")
+#save(ground_truth_bigram_from3,file="../output/ground_truth_bigram_from3.Rdata")
 # load("../output/ground_truth_bigram_from3.Rdata")
 ### romove duplicate bigrams
 ground_truth_unibig_from3 <- lapply(ground_truth_bigram_from3,unique_bigram)
-save(ground_truth_unibig_from3,file="../output/ground_truth_bigram_from3.Rdata") ### this is the final dictionary for error detection
+#save(ground_truth_unibig_from3,file="../output/ground_truth_bigram_from3.Rdata") ### this is the final dictionary for error detection
 #load("../output/ground_truth_bigram_from3.Rdata")
 
 ### include word length <= 2
 ground_truth_bigram_from3$l_1$PD_1_1<-letters
 ground_truth_bigram_from3$l_2$PD_1_2 <- unique(ground_truth_by_length[[2]])
+ground_truth_bigram_from<-ground_truth_bigram_from3[c(29,30,1:15)]
+save(ground_truth_bigram_from ,file = "../output/dictionary.Rdata")
 
 
 #### tesseract #################################################################
