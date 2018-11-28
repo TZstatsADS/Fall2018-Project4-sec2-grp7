@@ -41,7 +41,7 @@ OCR_model <- function(word, data){
     N <- nchar(word)
     word.new <- Replaces1(word, 1:N)
     out <- lapply(word.new, Replaces1,
-                  which(unlist(strsplit(word,"")) %in% unlist(strsplit(w,""))))
+                  which(unlist(strsplit(word,"")) %in% unlist(strsplit(word.new,""))))
     out <- unique(unlist(out))
     return(out)
   }
@@ -73,8 +73,7 @@ OCR_model <- function(word, data){
     if(length(candidates) > 0){
       probabilities <- sapply(candidates, Probability, known_words, word_ct)
     }
-    else
-    {
+    else{
       probabilities <- 1
       names(probabilities) <- word
     }
