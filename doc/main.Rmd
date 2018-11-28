@@ -151,6 +151,8 @@ The referenced papers are:
 
 5. [topic models](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4377099)
 
+
+## Train LDA Model
 ```{r, message= FALSE}
 setwd("../data/ground_truth")
 #load tm library assuming tm package already installed
@@ -164,6 +166,22 @@ docs <- Corpus(VectorSource(files))
 setwd("../")
 source('../lib/LDAmodel.R')
 ```
+```{r}
+Wordsprob<-LDA_MODEL(docs) # results of all per- topic- per- word probability
+```
+
+
+## Applying OCR model on Detected error
+
+```{r}
+#load("../output/ground_truth_by_length.Rdata")
+#unique_truth<-lapply(ground_truth_by_length,unique)
+source("../lib/Candidate.R")
+Candidate_best("epple",Wordsprob)
+
+```
+
+
 
 
 Here, in our code, we just simply remove the detected-errors.
