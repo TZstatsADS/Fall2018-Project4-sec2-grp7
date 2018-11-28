@@ -86,7 +86,7 @@ detected_words<-list()
 for(i in 1:100){
   detected_words[[i]]<-tesseract_words_cleaned[[i]][!as.logical(tesseract_labels[[i]])]
 }
-save(detected_words,file="detected_words.Rdata")
+save(detected_words,file="../output/detected_words.Rdata")
 
 
 
