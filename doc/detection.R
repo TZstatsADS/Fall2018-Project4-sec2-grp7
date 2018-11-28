@@ -81,3 +81,14 @@ summary(error_rate)
    
 save(tesseract_labels,file="../output/tesseract_labels.Rdata")
 
+
+detected_words<-list()
+for(i in 1:100){
+  detected_words[[i]]<-tesseract_words_cleaned[[i]][!as.logical(tesseract_labels[[i]])]
+}
+save(detected_words,file="detected_words.Rdata")
+
+
+
+
+
