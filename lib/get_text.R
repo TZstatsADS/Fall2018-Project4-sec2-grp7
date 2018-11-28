@@ -2,8 +2,7 @@
 ##############################################################
 ##############################################################
 
-### Authors: Hongru Liu
-### Project 4 Group 6
+### Project 4 Group 7
 
 get_text <- function(file_path) {
   text_lines <- readLines(file_path, warn=FALSE, encoding = "UTF-8")
