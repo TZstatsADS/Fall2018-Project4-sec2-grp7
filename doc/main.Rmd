@@ -75,7 +75,9 @@ file_name_vec <- list.files("../data/ground_truth") #100 files in total
 Although we have processed the Tesseract OCR and save the output txt files in the `data` folder, we include this chunk of code in order to make clear the whole pipeline to you.
 
 ```{r, eval=FALSE}
-for(i in c(1:length(file_name_vec))){
+Run_step2 <-FALSE
+if(Run_step2 == TRUE){
+  for(i in c(1:length(file_name_vec))){
   current_file_name <- sub(".txt","",file_name_vec[i])
   ## png folder is not provided on github (the code is only on demonstration purpose)
   current_tesseract_txt <- tesseract::ocr(paste("../data/png/",current_file_name,".png",sep=""))
@@ -86,7 +88,8 @@ for(i in c(1:length(file_name_vec))){
   
   ### save tesseract text file
   writeLines(clean_tesseract_txt, paste("../data/tesseract/",current_file_name,".txt",sep=""))
-}
+}}
+
 ```
 
 # Step 3 - Error detection
@@ -105,7 +108,7 @@ The referenced papers are:
 
 3. Probabilistic techniques -- [SVM garbage detection](https://dl.acm.org/citation.cfm?doid=2034617.2034626)
 
-- features are in section 5 (you can choose not to implement ‘Levenshtein distance’ feature)
+- features are in section 5 (you can choose not to implement ‘Levenshtein distance�? feature)
 
 
 In this statercode, we implement the first three rules in the first paper -- rule based techniques, as an example.
@@ -147,6 +150,21 @@ The referenced papers are:
 - focus on section 5
 
 5. [topic models](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4377099)
+
+```{r, message= FALSE}
+setwd("../data/ground_truth")
+#load tm library assuming tm package already installed
+library(tm)
+library(NLP)
+#load document files into corpus
+filenames <- list.files(getwd(),pattern="*.txt")
+files <- lapply(filenames,readLines)
+docs <- Corpus(VectorSource(files))
+#go to parent directory
+setwd("../")
+source('../lib/LDAmodel.R')
+```
+
 
 Here, in our code, we just simply remove the detected-errors.
 ```{r}
