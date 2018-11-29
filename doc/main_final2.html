@@ -340,8 +340,10 @@ source(&quot;../lib/get_text.R&quot;)</code></pre>
 <ul>
 <li>features are in section 5 (you can choose not to implement âLevenshtein distanceâ feature)</li>
 </ul>
-<p>In this statercode, we implement the first three rules in the first paper – rule based techniques, as an example.</p>
-<pre class="r"><code>load(&quot;../output/ground_truth_by_length.Rdata&quot;)
+<p>We implement the letter n-gram in our project in paper 2.<br />
+The detection method is positional binary n-gram and correction method is topic model. Error detection is performed by comparing all possible bigrams of all words in Tesseract with positional binary matrix constructed from Ground Truth. If any bigrams of a word do not appear in the corresponding positional binary matrix then the word is classified as error.</p>
+<pre class="r"><code># We saved the results and load it to avoid running all the codes repeatedly.
+load(&quot;../output/ground_truth_by_length.Rdata&quot;)
 load(&quot;../output/tesseract_words_cleaned.Rdata&quot;)
 load(&quot;../output/tesseract_labels.Rdata&quot;)
 load(&quot;../output/ground_truth_list.Rdata&quot;)
@@ -439,7 +441,7 @@ save(detected_words,file=&quot;../output/detected_words.Rdata&quot;)</code></pre
 <ol start="5" style="list-style-type: decimal">
 <li><a href="https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&amp;arnumber=4377099">topic models</a></li>
 </ol>
-<p>Here, in our code, we just simply remove the detected-errors.</p>
+<p>Here, in our project, we use the topic models. The error correction algorithm consists of a topic model that provides information about word probabilities. We list all the candidates of an error word and calculate the probability of each candidate based on the topic model. The candidate with the highest probability will be chosen as the correct word.</p>
 <pre class="r"><code>library(tm)
 files &lt;- lapply(ground_truth_file_path,readLines)
 docs &lt;- Corpus(VectorSource(files))
@@ -470,14 +472,13 @@ load(&quot;../output/results.Rdata&quot;)</code></pre>
 </div>
 <div id="step-5---performance-measure" class="section level1">
 <h1><span class="header-section-number">5</span> Step 5 - Performance measure</h1>
-The two most common OCR accuracy measures are precision and recall. Both are relative measures of the OCR accuracy because they are computed as ratios of the correct output to the total output (precision) or input (recall). More formally defined,
+<p>The two most common OCR accuracy measures are precision and recall. Both are relative measures of the OCR accuracy because they are computed as ratios of the correct output to the total output (precision) or input (recall). More formally defined,</p>
 <span class="math display">\[\begin{align*}
 \mbox{precision}&amp;=\frac{\mbox{number of correct items}}{\mbox{number of items in OCR output}}\\
 \mbox{recall}&amp;=\frac{\mbox{number of correct items}}{\mbox{number of items in ground truth}}
 \end{align*}\]</span>
 <p>where <em>items</em> refer to either characters or words, and ground truth is the original text stored in the plain text file.</p>
 <p>Both <em>precision</em> and <em>recall</em> are mathematically convenient measures because their numeric values are some decimal fractions in the range between 0.0 and 1.0, and thus can be written as percentages. For instance, recall is the percentage of words in the original text correctly found by the OCR engine, whereas precision is the percentage of correctly found words with respect to the total word count of the OCR output. Note that in the OCR-related literature, the term OCR accuracy often refers to recall.</p>
-<p>Here, we only finished the <strong>word level evaluation</strong> criterions, you are required to complete the <strong>letter-level</strong> part.</p>
 <pre class="r"><code>### delete error words in tesseract
 load(&quot;../output/tesseract_words_cleaned.Rdata&quot;)
 load(&quot;../output/tesseract_labels.Rdata&quot;)
@@ -598,6 +599,7 @@ kable(OCR_performance_table, caption=&quot;Summary of OCR performance&quot;)</co
 </tr>
 </tbody>
 </table>
+<p>We can see that after error detection, the ratio of correct words in all ground truth words or tesseract words is larger, which means we do detect the true error words. But the topic model doesn’t do so well in the correction step. Since the ratios are not as high as the ratios after error detection, but they are larger than OCR. We think that is because LDA automatically process the words to its oringinal form and we can’t correct the words to their other forms. For exapmle, when we detect “tltles” as an error word, we can’t correct it to “titles” because in topic model we only have word “title” in the dictionary.</p>
 <p>Besides the above required measurement, you are encouraged the explore more evaluation measurements. Here are some related references:</p>
 <ol style="list-style-type: decimal">
 <li>Karpinski, R., Lohani, D., &amp; BelaÃ¯d, A. <em>Metrics for Complete Evaluation of OCR Performance</em>. <a href="https://csce.ucmss.com/cr/books/2018/LFS/CSREA2018/IPC3481.pdf">pdf</a></li>
