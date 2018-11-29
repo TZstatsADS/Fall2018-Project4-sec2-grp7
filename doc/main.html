@@ -94,6 +94,9 @@ img {
 .tabbed-pane {
   padding-top: 12px;
 }
+.html-widget {
+  margin-bottom: 20px;
+}
 button.code-folding-btn:focus {
   outline: none;
 }
@@ -286,31 +289,28 @@ h4 { /* Header 4 */
 <div id="step-1---load-library-and-source-code" class="section level1">
 <h1><span class="header-section-number">1</span> Step 1 - Load library and source code</h1>
 <pre class="r"><code>if (!require(&quot;devtools&quot;)) install.packages(&quot;devtools&quot;)
-if (!require(&quot;pacman&quot;)) {
+#if (!require(&quot;pacman&quot;)) {
   ## devtools is required
-  library(devtools)
-  install_github(&quot;trinker/pacman&quot;)
-}
-
-pacman::p_load(knitr, readr, stringr, tesseract, vecsets)
+#  library(devtools)
+#  install_github(&quot;trinker/pacman&quot;)
+#}
+#pacman::p_load(knitr, readr, stringr, tesseract, vecsets)
 source('../lib/ifCleanToken.R')
-file_name_vec &lt;- list.files(&quot;../data/ground_truth&quot;) #100 files in total</code></pre>
+library(ngram)
+library(NLP)
+library(tm)
+library(purrr)
+#library(qdap)
+library(knitr)
+source(&quot;../lib/bigramize.R&quot;)
+source(&quot;../lib/get_text.R&quot;)</code></pre>
 </div>
 <div id="step-2---read-the-files-and-conduct-tesseract-ocr" class="section level1">
 <h1><span class="header-section-number">2</span> Step 2 - read the files and conduct Tesseract OCR</h1>
 <p>Although we have processed the Tesseract OCR and save the output txt files in the <code>data</code> folder, we include this chunk of code in order to make clear the whole pipeline to you.</p>
-<pre class="r"><code>for(i in c(1:length(file_name_vec))){
-  current_file_name &lt;- sub(&quot;.txt&quot;,&quot;&quot;,file_name_vec[i])
-  ## png folder is not provided on github (the code is only on demonstration purpose)
-  current_tesseract_txt &lt;- tesseract::ocr(paste(&quot;../data/png/&quot;,current_file_name,&quot;.png&quot;,sep=&quot;&quot;))
-  
-  ### clean the tessetact text (separate line by &quot;\n&quot;, delete null string, transter to lower case)
-  clean_tesseract_txt &lt;- strsplit(current_tesseract_txt,&quot;\n&quot;)[[1]]
-  clean_tesseract_txt &lt;- clean_tesseract_txt[clean_tesseract_txt!=&quot;&quot;]
-  
-  ### save tesseract text file
-  writeLines(clean_tesseract_txt, paste(&quot;../data/tesseract/&quot;,current_file_name,&quot;.txt&quot;,sep=&quot;&quot;))
-}</code></pre>
+<p>for(i in c(1:length(file_name_vec))){ current_file_name &lt;- sub(“.txt”,“”,file_name_vec[i]) ## png folder is not provided on github (the code is only on demonstration purpose) current_tesseract_txt &lt;- tesseract::ocr(paste(“../data/png/”,current_file_name,“.png”,sep=“”))</p>
+<p>### clean the tessetact text (separate line by “”, delete null string, transter to lower case) clean_tesseract_txt &lt;- strsplit(current_tesseract_txt,“”)[[1]] clean_tesseract_txt &lt;- clean_tesseract_txt[clean_tesseract_txt!=“”]</p>
+<p>### save tesseract text file writeLines(clean_tesseract_txt, paste(“../data/tesseract/”,current_file_name,“.txt”,sep=“”)) }</p>
 </div>
 <div id="step-3---error-detection" class="section level1">
 <h1><span class="header-section-number">3</span> Step 3 - Error detection</h1>
@@ -335,19 +335,75 @@ file_name_vec &lt;- list.files(&quot;../data/ground_truth&quot;) #100 files in t
 <li>features are in section 5 (you can choose not to implement ‘Levenshtein distance’ feature)</li>
 </ul>
 <p>In this statercode, we implement the first three rules in the first paper – rule based techniques, as an example.</p>
-<pre class="r"><code>### only process one of the files in the folder as an example, in your project, you need to use all the files
-current_file_name &lt;- sub(&quot;.txt&quot;,&quot;&quot;,file_name_vec[5])
-
-## read the ground truth text
-current_ground_truth_txt &lt;- readLines(paste(&quot;../data/ground_truth/&quot;,current_file_name,&quot;.txt&quot;,sep=&quot;&quot;), warn=FALSE)
-
-## read the tesseract text
-current_tesseract_txt &lt;- readLines(paste(&quot;../data/tesseract/&quot;,current_file_name,&quot;.txt&quot;,sep=&quot;&quot;), warn=FALSE)
-clean_tesseract_txt &lt;- paste(current_tesseract_txt, collapse = &quot; &quot;)
-
-## detect tesseract word error
-tesseract_vec &lt;- str_split(clean_tesseract_txt,&quot; &quot;)[[1]] #1124 tokens
-tesseract_if_clean &lt;- unlist(lapply(tesseract_vec,ifCleanToken)) # source code of ifCleanToken in in lib folder</code></pre>
+<pre class="r"><code>load(&quot;../output/ground_truth_by_length.Rdata&quot;)
+load(&quot;../output/tesseract_words_cleaned.Rdata&quot;)
+load(&quot;../output/tesseract_labels.Rdata&quot;)
+load(&quot;../output/ground_truth_list.Rdata&quot;)
+#### ground truth ##############################################################
+### read files
+ground_truth_dir &lt;-&quot;../data/ground_truth&quot;
+ground_truth_file_name &lt;- list.files(ground_truth_dir)
+ground_truth_file_path &lt;- paste0(ground_truth_dir,'/',ground_truth_file_name)
+ground_truth_onelines &lt;- lapply(ground_truth_file_path,get_text)
+### clean the texts and sort the words by letter length
+#ground_truth_words_cleaned &lt;- unlist(lapply(ground_truth_onelines,clean_text))
+#ground_truth_by_length &lt;- sort_by_length(ground_truth_words_cleaned)
+#save(ground_truth_by_length, file = &quot;../output/ground_truth_by_length.Rdata&quot;)
+### bigramize the word from word length &gt;= 3
+num_len &lt;- length(ground_truth_by_length)
+ground_truth_bigram_from3 &lt;- lapply(ground_truth_by_length[3:num_len],bigramize)</code></pre>
+<pre><code>## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length 
+## new length</code></pre>
+<pre class="r"><code>save(ground_truth_bigram_from3,file=&quot;../output/ground_truth_bigram_from3.Rdata&quot;)
+# load(&quot;../output/ground_truth_bigram_from3.Rdata&quot;)
+### include word length &lt;= 2
+ground_truth_bigram_from3$l_1$PD_1_1 &lt;- letters
+ground_truth_bigram_from3$l_2$PD_1_2 &lt;- unique(ground_truth_by_length[[2]])
+ground_truth_bigram_from3 &lt;- ground_truth_bigram_from3[c(29,30,1:18)]
+### romove duplicate bigrams
+final_dictionary &lt;- lapply(ground_truth_bigram_from3,unique_bigram)
+save(final_dictionary,file=&quot;../output/dictionary.Rdata&quot;) ### this is the final dictionary for error detection
+#load(&quot;../output/dictionary.Rdata&quot;)
+#### tesseract #################################################################
+### read files
+tesseract_dir &lt;- &quot;../data/tesseract&quot;
+tesseract_file_name &lt;- list.files(tesseract_dir)
+tesseract_file_path &lt;- paste0(tesseract_dir,'/',tesseract_file_name)
+tesseract_onelines &lt;- lapply(tesseract_file_path,get_text)
+### clean the texts
+#tesseract_words_cleaned &lt;- lapply(tesseract_onelines,clean_text)
+#save(tesseract_words_cleaned,file=&quot;../output/tesseract_words_cleaned.Rdata&quot;)
+# load(&quot;../output/ground_truth_words_cleaned.Rdata&quot;)</code></pre>
+<div id="error-detection" class="section level4">
+<h4><span class="header-section-number">3.0.0.1</span> error detection</h4>
+<p>tesseract_labels &lt;- list() for (i in 1:length(tesseract_words_cleaned)) { cat(“current file number =”,i,“”) cur_tesseract &lt;- tesseract_words_cleaned[[i]] # cur_file &lt;- tesseract_words_cleaned[[i]] cur_labels &lt;- c() for (j in 1:length(cur_tesseract)) { cur_word &lt;- cur_tesseract[j] cur_length &lt;- nchar(cur_word) cur_bigram &lt;- bigramize_word(cur_word) cur_dic &lt;- final_dictionary[[paste(“l_”,cur_length,sep=“”)]] tmp_lable &lt;- c() # browser() for (k in 1:length(cur_bigram)){ tmp_lable[k] &lt;- cur_bigram[[k]]%in%cur_dic[[k]] } cur_tmp_lable &lt;- as.numeric(sum(tmp_lable)==length(cur_bigram)) cur_labels[j] &lt;- cur_tmp_lable } tesseract_labels[[i]] &lt;- cur_labels } error_rate &lt;- 1-(sapply(tesseract_labels, sum)/sapply(tesseract_words_cleaned, length)) summary(error_rate) save(tesseract_labels,file=“../output/tesseract_labels.Rdata”) ### save the error words detected_words &lt;- list() for (i in 1:100){ detected_words[[i]] &lt;- tesseract_words_cleaned[[i]][!as.logical(tesseract_labels[[i]])] } save(detected_words,file=“../output/detected_words.Rdata”)</p>
+</div>
 </div>
 <div id="step-4---error-correction" class="section level1">
 <h1><span class="header-section-number">4</span> Step 4 - Error correction</h1>
@@ -376,7 +432,46 @@ tesseract_if_clean &lt;- unlist(lapply(tesseract_vec,ifCleanToken)) # source cod
 <li><a href="https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&amp;arnumber=4377099">topic models</a></li>
 </ol>
 <p>Here, in our code, we just simply remove the detected-errors.</p>
-<pre class="r"><code>tesseract_delete_error_vec &lt;- tesseract_vec[tesseract_if_clean] #1095</code></pre>
+<pre class="r"><code>library(tm)
+files &lt;- lapply(ground_truth_file_path,readLines)
+docs &lt;- Corpus(VectorSource(files))
+load(&quot;../output/ground_truth_by_length.Rdata&quot;)
+dic &lt;- ground_truth_by_length
+source(&quot;../lib/sub_prob.R&quot;)
+prob &lt;- sub_prob()
+source(&quot;../lib/LDAmodel.R&quot;)
+words_pro &lt;- LDA_MODEL(docs)</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(text, removePunctuation): transformation
+## drops documents</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(docs, content_transformer(tolower)):
+## transformation drops documents</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(docs, removeNumbers): transformation drops
+## documents</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(docs, removeWords, stopwords(&quot;english&quot;)):
+## transformation drops documents</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(docs, stripWhitespace): transformation drops
+## documents</code></pre>
+<pre><code>## Warning in tm_map.SimpleCorpus(docs, stemDocument): transformation drops
+## documents</code></pre>
+<pre><code>## Warning: package 'topicmodels' was built under R version 3.4.2</code></pre>
+<pre class="r"><code>words_topic &lt;- names(words_pro) 
+
+load(&quot;../output/detected_words.Rdata&quot;)
+detected_words_vec &lt;- lapply(detected_words,unique)
+source(&quot;../lib/Candidate.R&quot;)
+
+
+results &lt;- list()
+for (text in 1:100){
+  len &lt;- length(detected_words_vec[[text]])
+  result &lt;- rep(0, len)
+  for (i in 1:len){
+    result[i] &lt;- Candidate_best(detected_words_vec[[text]][i])$best
+  }
+  results[[text]] &lt;- result
+}</code></pre>
+<pre><code>## Warning in strsplit(c(a, b), split = &quot;&quot;)[[1]] != strsplit(c(a, b), split =
+## &quot;&quot;)[[2]]: longer object length is not a multiple of shorter object length</code></pre>
 </div>
 <div id="step-5---performance-measure" class="section level1">
 <h1><span class="header-section-number">5</span> Step 5 - Performance measure</h1>
@@ -388,18 +483,88 @@ The two most common OCR accuracy measures are precision and recall. Both are rel
 <p>where <em>items</em> refer to either characters or words, and ground truth is the original text stored in the plain text file.</p>
 <p>Both <em>precision</em> and <em>recall</em> are mathematically convenient measures because their numeric values are some decimal fractions in the range between 0.0 and 1.0, and thus can be written as percentages. For instance, recall is the percentage of words in the original text correctly found by the OCR engine, whereas precision is the percentage of correctly found words with respect to the total word count of the OCR output. Note that in the OCR-related literature, the term OCR accuracy often refers to recall.</p>
 <p>Here, we only finished the <strong>word level evaluation</strong> criterions, you are required to complete the <strong>letter-level</strong> part.</p>
-<pre class="r"><code>ground_truth_vec &lt;- str_split(paste(current_ground_truth_txt, collapse = &quot; &quot;),&quot; &quot;)[[1]] #1078
-old_intersect_vec &lt;- vecsets::vintersect(tolower(ground_truth_vec), tolower(tesseract_vec)) #607
-new_intersect_vec &lt;- vecsets::vintersect(tolower(ground_truth_vec), tolower(tesseract_delete_error_vec)) #600
+<pre class="r"><code>### delete error words in tesseract
+load(&quot;../output/tesseract_words_cleaned.Rdata&quot;)
+load(&quot;../output/tesseract_labels.Rdata&quot;)
+load(&quot;../output/ground_truth_list.Rdata&quot;)
 
+split_char &lt;- function(vec){length(unlist(strsplit(vec, &quot;&quot;)))}
+tesseract_delete_error &lt;- list()
+for (i in 1:100){
+  tesseract_delete_error[[i]] &lt;- tesseract_words_cleaned[[i]][as.logical(tesseract_labels[[i]])]
+}
+# save(tesseract_delete_error,file=&quot;../output/tesseract_delete_error.Rdata&quot;)
+### performance table -- mean of 100 documents
+### wordwise
+#ground_truth_list &lt;- lapply(ground_truth_onelines,clean_text)
+tesseract_list &lt;- tesseract_words_cleaned
+tesseract_delete_error_list &lt;- tesseract_delete_error
+old_intersect_list &lt;- list()
+for (i in 1:100){
+  old_intersect_list[[i]] &lt;- vecsets::vintersect(tolower(ground_truth_list[[i]]), tolower(tesseract_list[[i]]))
+}
+new_intersect_list &lt;- list()
+for (i in 1:100){
+  new_intersect_list[[i]] &lt;- vecsets::vintersect(tolower(ground_truth_list[[i]]), tolower(tesseract_delete_error_list[[i]]))
+}
+#correction
+tesseract_vec_all_add_correct &lt;- list()
+correct_intersect_list &lt;- list()
+for (i in 1:100){
+  tesseract_vec_all_add_correct[[i]] &lt;- append(tolower(tesseract_delete_error_list[[i]]), results[[i]])
+  correct_intersect_list[[i]] &lt;- vecsets::vintersect(tolower(ground_truth_list[[i]]), tolower(tesseract_vec_all_add_correct[[i]]))
+}
+#
 OCR_performance_table &lt;- data.frame(&quot;Tesseract&quot; = rep(NA,4),
-                                    &quot;Tesseract_with_postprocessing&quot; = rep(NA,4))
+                                    &quot;Tesseract_with_postprocessing&quot; = rep(NA,4),
+                                    &quot;Tesseract_with_correction&quot; = rep(NA,4))
 row.names(OCR_performance_table) &lt;- c(&quot;word_wise_recall&quot;,&quot;word_wise_precision&quot;,
-                                                 &quot;character_wise_recall&quot;,&quot;character_wise_precision&quot;)
-OCR_performance_table[&quot;word_wise_recall&quot;,&quot;Tesseract&quot;] &lt;- length(old_intersect_vec)/length(ground_truth_vec)
-OCR_performance_table[&quot;word_wise_precision&quot;,&quot;Tesseract&quot;] &lt;- length(old_intersect_vec)/length(tesseract_vec)
-OCR_performance_table[&quot;word_wise_recall&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- length(new_intersect_vec)/length(ground_truth_vec)
-OCR_performance_table[&quot;word_wise_precision&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- length(new_intersect_vec)/length(tesseract_delete_error_vec)
+                                      &quot;character_wise_recall&quot;,&quot;character_wise_precision&quot;)
+word_wise_recall_tesseract &lt;- rep(0,100)
+word_wise_precision_tesseract &lt;- rep(0,100)
+word_wise_recall_postprocessing &lt;- rep(0,100)
+word_wise_precision_postprocessing &lt;- rep(0,100)
+character_wise_recall_tesseract&lt;-rep(0,100)
+character_wise_precision_tesseract&lt;-rep(0,100)
+character_wise_recall_postprocessing&lt;-rep(0,100)
+character_wise_precision_postprocessing&lt;-rep(0,100)
+for (i in 1:100){
+  word_wise_recall_tesseract[i] &lt;- length(old_intersect_list[[i]])/length(ground_truth_list[[i]])
+  word_wise_precision_tesseract[i] &lt;- length(old_intersect_list[[i]])/length(tesseract_list[[i]])
+  word_wise_recall_postprocessing[i] &lt;- length(new_intersect_list[[i]])/length(ground_truth_list[[i]])
+  word_wise_precision_postprocessing[i] &lt;- length(new_intersect_list[[i]])/length(tesseract_delete_error_list[[i]])
+  
+  character_wise_recall_tesseract[i]&lt;-split_char(old_intersect_list[[i]])/split_char(ground_truth_list[[i]])
+  character_wise_precision_tesseract&lt;-split_char(old_intersect_list[[i]])/split_char(tesseract_list[[i]])
+  character_wise_recall_postprocessing&lt;-split_char(new_intersect_list[[i]])/split_char(ground_truth_list[[i]])
+  character_wise_precision_postprocessing&lt;-split_char(new_intersect_list[[i]])/split_char(tesseract_delete_error_list[[i]])
+}
+#correction
+word_wise_recall_correction &lt;- rep(0,100)
+word_wise_precision_correction &lt;- rep(0,100)
+character_wise_recall_correction &lt;- rep(0,100)
+character_wise_precision_correction &lt;- rep(0,100)
+for (i in 1:100){
+  word_wise_recall_correction[i] &lt;- length(correct_intersect_list[[i]])/length(ground_truth_list[[i]])
+  word_wise_precision_correction[i] &lt;- length(correct_intersect_list[[i]])/length(tesseract_vec_all_add_correct[[i]])
+  character_wise_recall_correction[i] &lt;- split_char(correct_intersect_list[[i]])/split_char(ground_truth_list[[i]])
+  character_wise_precision_correction[i] &lt;- split_char(correct_intersect_list[[i]])/split_char(tesseract_vec_all_add_correct[[i]])
+}
+#
+OCR_performance_table[&quot;word_wise_recall&quot;,&quot;Tesseract&quot;] &lt;- mean(word_wise_recall_tesseract)
+OCR_performance_table[&quot;word_wise_precision&quot;,&quot;Tesseract&quot;] &lt;- mean(word_wise_precision_tesseract)
+OCR_performance_table[&quot;word_wise_recall&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- mean(word_wise_recall_postprocessing)
+OCR_performance_table[&quot;word_wise_precision&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- mean(word_wise_precision_postprocessing)
+OCR_performance_table[&quot;character_wise_recall&quot;,&quot;Tesseract&quot;] &lt;- mean(character_wise_recall_tesseract)
+OCR_performance_table[&quot;character_wise_precision&quot;,&quot;Tesseract&quot;] &lt;- mean(character_wise_precision_tesseract)
+OCR_performance_table[&quot;character_wise_recall&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- mean(character_wise_recall_postprocessing)
+OCR_performance_table[&quot;character_wise_precision&quot;,&quot;Tesseract_with_postprocessing&quot;] &lt;- mean(character_wise_precision_postprocessing)
+#correction
+OCR_performance_table[&quot;word_wise_recall&quot;,&quot;Tesseract_with_correction&quot;] &lt;- mean(word_wise_recall_correction)
+OCR_performance_table[&quot;word_wise_precision&quot;,&quot;Tesseract_with_correction&quot;] &lt;- mean(word_wise_precision_correction)
+OCR_performance_table[&quot;character_wise_recall&quot;,&quot;Tesseract_with_correction&quot;] &lt;- mean(character_wise_recall_correction)
+OCR_performance_table[&quot;character_wise_precision&quot;,&quot;Tesseract_with_correction&quot;] &lt;- mean(character_wise_precision_correction)
+#
 kable(OCR_performance_table, caption=&quot;Summary of OCR performance&quot;)</code></pre>
 <table>
 <caption>Summary of OCR performance</caption>
@@ -408,28 +573,33 @@ kable(OCR_performance_table, caption=&quot;Summary of OCR performance&quot;)</co
 <th></th>
 <th align="right">Tesseract</th>
 <th align="right">Tesseract_with_postprocessing</th>
+<th align="right">Tesseract_with_correction</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>word_wise_recall</td>
-<td align="right">0.5630798</td>
-<td align="right">0.5565863</td>
+<td align="right">0.6412554</td>
+<td align="right">0.6412255</td>
+<td align="right">0.6547511</td>
 </tr>
 <tr class="even">
 <td>word_wise_precision</td>
-<td align="right">0.5400356</td>
-<td align="right">0.5479452</td>
+<td align="right">0.6466806</td>
+<td align="right">0.7875722</td>
+<td align="right">0.7005428</td>
 </tr>
 <tr class="odd">
 <td>character_wise_recall</td>
-<td align="right">NA</td>
-<td align="right">NA</td>
+<td align="right">0.5227591</td>
+<td align="right">0.4916339</td>
+<td align="right">0.5402035</td>
 </tr>
 <tr class="even">
 <td>character_wise_precision</td>
-<td align="right">NA</td>
-<td align="right">NA</td>
+<td align="right">0.5169737</td>
+<td align="right">0.7428246</td>
+<td align="right">0.6159443</td>
 </tr>
 </tbody>
 </table>
