@@ -67,7 +67,15 @@ if (!require("pacman")) {
 
 pacman::p_load(knitr, readr, stringr, tesseract, vecsets)
 source('../lib/ifCleanToken.R')
-file_name_vec <- list.files("../data/ground_truth") #100 files in total
+library(ngram)
+library(NLP)
+library(tm)
+library(purrr)
+library(qdap)
+library(knitr)
+
+source("../lib/bigramize.R")
+source("../lib/get_text.R")
 ```
 
 # Step 2 - read the files and conduct Tesseract OCR
@@ -75,9 +83,7 @@ file_name_vec <- list.files("../data/ground_truth") #100 files in total
 Although we have processed the Tesseract OCR and save the output txt files in the `data` folder, we include this chunk of code in order to make clear the whole pipeline to you.
 
 ```{r, eval=FALSE}
-Run_step2 <-FALSE
-if(Run_step2 == TRUE){
-  for(i in c(1:length(file_name_vec))){
+for(i in c(1:length(file_name_vec))){
   current_file_name <- sub(".txt","",file_name_vec[i])
   ## png folder is not provided on github (the code is only on demonstration purpose)
   current_tesseract_txt <- tesseract::ocr(paste("../data/png/",current_file_name,".png",sep=""))
@@ -88,8 +94,7 @@ if(Run_step2 == TRUE){
   
   ### save tesseract text file
   writeLines(clean_tesseract_txt, paste("../data/tesseract/",current_file_name,".txt",sep=""))
-}}
-
+}
 ```
 
 # Step 3 - Error detection
@@ -108,25 +113,86 @@ The referenced papers are:
 
 3. Probabilistic techniques -- [SVM garbage detection](https://dl.acm.org/citation.cfm?doid=2034617.2034626)
 
-- features are in section 5 (you can choose not to implement ‘Levenshtein distance??? feature)
+- features are in section 5 (you can choose not to implement ‘Levenshtein distance’ feature)
 
 
 In this statercode, we implement the first three rules in the first paper -- rule based techniques, as an example.
 
 ```{r}
-### only process one of the files in the folder as an example, in your project, you need to use all the files
-current_file_name <- sub(".txt","",file_name_vec[5])
+#### ground truth ##############################################################
+### read files
+ground_truth_dir <-"../data/ground_truth"
+ground_truth_file_name <- list.files(ground_truth_dir)
+ground_truth_file_path <- paste0(ground_truth_dir,'/',ground_truth_file_name)
+ground_truth_onelines <- lapply(ground_truth_file_path,get_text)
 
-## read the ground truth text
-current_ground_truth_txt <- readLines(paste("../data/ground_truth/",current_file_name,".txt",sep=""), warn=FALSE)
+### clean the texts and sort the words by letter length
+ground_truth_words_cleaned <- unlist(lapply(ground_truth_onelines,clean_text))
+ground_truth_by_length <- sort_by_length(ground_truth_words_cleaned)
+save(ground_truth_by_length, file = "../output/ground_truth_by_length.Rdata")
 
-## read the tesseract text
-current_tesseract_txt <- readLines(paste("../data/tesseract/",current_file_name,".txt",sep=""), warn=FALSE)
-clean_tesseract_txt <- paste(current_tesseract_txt, collapse = " ")
+### bigramize the word from word length >= 3
+num_len <- length(ground_truth_by_length)
+ground_truth_bigram_from3 <- lapply(ground_truth_by_length[3:num_len],bigramize)
+save(ground_truth_bigram_from3,file="../output/ground_truth_bigram_from3.Rdata")
+# load("../output/ground_truth_bigram_from3.Rdata")
 
-## detect tesseract word error
-tesseract_vec <- str_split(clean_tesseract_txt," ")[[1]] #1124 tokens
-tesseract_if_clean <- unlist(lapply(tesseract_vec,ifCleanToken)) # source code of ifCleanToken in in lib folder
+### include word length <= 2
+ground_truth_bigram_from3$l_1$PD_1_1 <- letters
+ground_truth_bigram_from3$l_2$PD_1_2 <- unique(ground_truth_by_length[[2]])
+ground_truth_bigram_from3 <- ground_truth_bigram_from3[c(29,30,1:18)]
+
+### romove duplicate bigrams
+final_dictionary <- lapply(ground_truth_bigram_from3,unique_bigram)
+save(final_dictionary,file="../output/dictionary.Rdata") ### this is the final dictionary for error detection
+#load("../output/dictionary.Rdata")
+
+#### tesseract #################################################################
+### read files
+tesseract_dir <- "../data/tesseract"
+tesseract_file_name <- list.files(tesseract_dir)
+tesseract_file_path <- paste0(tesseract_dir,'/',tesseract_file_name)
+tesseract_onelines <- lapply(tesseract_file_path,get_text)
+
+### clean the texts
+tesseract_words_cleaned <- lapply(tesseract_onelines,clean_text)
+save(tesseract_words_cleaned,file="../output/tesseract_words_cleaned.Rdata")
+# load("../output/ground_truth_words_cleaned.Rdata")
+
+#### error detection ###########################################################
+tesseract_labels <- list()
+for (i in 1:length(tesseract_words_cleaned)) {
+  cat("current file number =",i,"\n")
+  cur_tesseract <- tesseract_words_cleaned[[i]]
+  # cur_file <- tesseract_words_cleaned[[i]]
+  cur_labels <- c()
+  for (j in 1:length(cur_tesseract)) {
+    cur_word <- cur_tesseract[j]
+    cur_length <- nchar(cur_word)
+    cur_bigram <- bigramize_word(cur_word)
+    cur_dic <- final_dictionary[[paste("l_",cur_length,sep="")]]
+    tmp_lable <- c()
+    # browser()
+    for (k in 1:length(cur_bigram)){
+      tmp_lable[k] <- cur_bigram[[k]]%in%cur_dic[[k]]
+    }
+    cur_tmp_lable <- as.numeric(sum(tmp_lable)==length(cur_bigram))
+    cur_labels[j] <- cur_tmp_lable
+  }
+  tesseract_labels[[i]] <- cur_labels
+}
+
+error_rate <- 1-(sapply(tesseract_labels, sum)/sapply(tesseract_words_cleaned, length))
+summary(error_rate)
+
+save(tesseract_labels,file="../output/tesseract_labels.Rdata")
+
+### save the error words
+detected_words <- list()
+for (i in 1:100){
+  detected_words[[i]] <- tesseract_words_cleaned[[i]][!as.logical(tesseract_labels[[i]])]
+}
+save(detected_words,file="../output/detected_words.Rdata")
 ```
 
 # Step 4 - Error correction
@@ -151,21 +217,6 @@ The referenced papers are:
 
 5. [topic models](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4377099)
 
-```{r, message= FALSE}
-setwd("../data/ground_truth")
-#load tm library assuming tm package already installed
-library(tm)
-library(NLP)
-#load document files into corpus
-filenames <- list.files(getwd(),pattern="*.txt")
-files <- lapply(filenames,readLines)
-docs <- Corpus(VectorSource(files))
-#go to parent directory
-setwd("../")
-source('../lib/LDAmodel.R')
-```
-
-
 Here, in our code, we just simply remove the detected-errors.
 ```{r}
 tesseract_delete_error_vec <- tesseract_vec[tesseract_if_clean] #1095
@@ -185,23 +236,49 @@ Both *precision* and *recall* are mathematically convenient measures because the
 Here, we only finished the **word level evaluation** criterions, you are required to complete the **letter-level** part.
 
 ```{r}
-split_char <- function(vec){length(unlist(strsplit(vec, "")))}
-ground_truth_vec <- str_split(paste(current_ground_truth_txt, collapse = " ")," ")[[1]] #1078
-old_intersect_vec <- vecsets::vintersect(tolower(ground_truth_vec), tolower(tesseract_vec)) #607
-new_intersect_vec <- vecsets::vintersect(tolower(ground_truth_vec), tolower(tesseract_delete_error_vec)) #600
+### delete error words in tesseract
+tesseract_delete_error <- list()
+for (i in 1:100){
+  tesseract_delete_error[[i]] <- tesseract_words_cleaned[[i]][as.logical(tesseract_labels[[i]])]
+}
+# save(tesseract_delete_error,file="../output/tesseract_delete_error.Rdata")
+
+### performance table -- mean of 100 documents
+### wordwise
+ground_truth_list <- lapply(ground_truth_onelines,clean_text)
+# save(ground_truth_list, file="../output/ground_truth_list.Rdata")
+tesseract_list <- tesseract_words_cleaned
+tesseract_delete_error_list <- tesseract_delete_error
+
+old_intersect_list <- list()
+for (i in 1:100){
+  old_intersect_list[[i]] <- vecsets::vintersect(tolower(ground_truth_list[[i]]), tolower(tesseract_list[[i]]))
+}
+new_intersect_list <- list()
+for (i in 1:100){
+  new_intersect_list[[i]] <- vecsets::vintersect(tolower(ground_truth_list[[i]]), tolower(tesseract_delete_error_list[[i]]))
+}
 
 OCR_performance_table <- data.frame("Tesseract" = rep(NA,4),
                                     "Tesseract_with_postprocessing" = rep(NA,4))
 row.names(OCR_performance_table) <- c("word_wise_recall","word_wise_precision",
-                                                 "character_wise_recall","character_wise_precision")
-OCR_performance_table["word_wise_recall","Tesseract"] <- length(old_intersect_vec)/length(ground_truth_vec)
-OCR_performance_table["word_wise_precision","Tesseract"] <- length(old_intersect_vec)/length(tesseract_vec)
-OCR_performance_table["word_wise_recall","Tesseract_with_postprocessing"] <- length(new_intersect_vec)/length(ground_truth_vec)
-OCR_performance_table["word_wise_precision","Tesseract_with_postprocessing"] <- length(new_intersect_vec)/length(tesseract_delete_error_vec)
-OCR_performance_table["character_wise_recall","Tesseract"] <- split_char(old_intersect_vec)/split_char(ground_truth_vec)
-OCR_performance_table["character_wise_precision","Tesseract"] <- split_char(old_intersect_vec)/split_char(tesseract_vec)
-OCR_performance_table["character_wise_recall","Tesseract_with_postprocessing"] <- split_char(new_intersect_vec)/split_char(ground_truth_vec)
-OCR_performance_table["character_wise_precision","Tesseract_with_postprocessing"] <-  split_char(new_intersect_vec)/split_char(tesseract_delete_error_vec)
+                                      "character_wise_recall","character_wise_precision")
+
+word_wise_recall_tesseract <- rep(0,100)
+word_wise_precision_tesseract <- rep(0,100)
+word_wise_recall_postprocessing <- rep(0,100)
+word_wise_precision_postprocessing <- rep(0,100)
+for (i in 1:100){
+  word_wise_recall_tesseract[i] <- length(old_intersect_list[[i]])/length(ground_truth_list[[i]])
+  word_wise_precision_tesseract[i] <- length(old_intersect_list[[i]])/length(tesseract_list[[i]])
+  word_wise_recall_postprocessing[i] <- length(new_intersect_list[[i]])/length(ground_truth_list[[i]])
+  word_wise_precision_postprocessing[i] <- length(new_intersect_list[[i]])/length(tesseract_delete_error_list[[i]])
+}
+
+OCR_performance_table["word_wise_recall","Tesseract"] <- mean(word_wise_recall_tesseract)
+OCR_performance_table["word_wise_precision","Tesseract"] <- mean(word_wise_precision_tesseract)
+OCR_performance_table["word_wise_recall","Tesseract_with_postprocessing"] <- mean(word_wise_recall_postprocessing)
+OCR_performance_table["word_wise_precision","Tesseract_with_postprocessing"] <- mean(word_wise_precision_postprocessing)
 kable(OCR_performance_table, caption="Summary of OCR performance")
 ```
 
