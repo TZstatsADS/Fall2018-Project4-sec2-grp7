@@ -11,7 +11,7 @@ output:
     code_folding: hide
 ---
 
-Jing Wu
+Group 7
 
 GU4243/GR5243: Applied Data Science
 
@@ -80,7 +80,6 @@ source("../lib/get_text.R")
 Although we have processed the Tesseract OCR and save the output txt files in the `data` folder, we include this chunk of code in order to make clear the whole pipeline to you.
 
 ```{r, eval=FALSE}
-```
 for(i in c(1:length(file_name_vec))){
   current_file_name <- sub(".txt","",file_name_vec[i])
   ## png folder is not provided on github (the code is only on demonstration purpose)
@@ -93,6 +92,8 @@ for(i in c(1:length(file_name_vec))){
   ### save tesseract text file
   writeLines(clean_tesseract_txt, paste("../data/tesseract/",current_file_name,".txt",sep=""))
 }
+```
+
 
 
 # Step 3 - Error detection
@@ -121,6 +122,11 @@ load("../output/ground_truth_by_length.Rdata")
 load("../output/tesseract_words_cleaned.Rdata")
 load("../output/tesseract_labels.Rdata")
 load("../output/ground_truth_list.Rdata")
+load("../output/detected_words.Rdata")
+load("../output/tesseract_labels.Rdata")
+```
+
+```{r, eval=FALSE}
 #### ground truth ##############################################################
 ### read files
 ground_truth_dir <-"../data/ground_truth"
@@ -128,9 +134,9 @@ ground_truth_file_name <- list.files(ground_truth_dir)
 ground_truth_file_path <- paste0(ground_truth_dir,'/',ground_truth_file_name)
 ground_truth_onelines <- lapply(ground_truth_file_path,get_text)
 ### clean the texts and sort the words by letter length
-#ground_truth_words_cleaned <- unlist(lapply(ground_truth_onelines,clean_text))
-#ground_truth_by_length <- sort_by_length(ground_truth_words_cleaned)
-#save(ground_truth_by_length, file = "../output/ground_truth_by_length.Rdata")
+ground_truth_words_cleaned <- unlist(lapply(ground_truth_onelines,clean_text))
+ground_truth_by_length <- sort_by_length(ground_truth_words_cleaned)
+save(ground_truth_by_length, file = "../output/ground_truth_by_length.Rdata")
 ### bigramize the word from word length >= 3
 num_len <- length(ground_truth_by_length)
 ground_truth_bigram_from3 <- lapply(ground_truth_by_length[3:num_len],bigramize)
@@ -151,10 +157,10 @@ tesseract_file_name <- list.files(tesseract_dir)
 tesseract_file_path <- paste0(tesseract_dir,'/',tesseract_file_name)
 tesseract_onelines <- lapply(tesseract_file_path,get_text)
 ### clean the texts
-#tesseract_words_cleaned <- lapply(tesseract_onelines,clean_text)
-#save(tesseract_words_cleaned,file="../output/tesseract_words_cleaned.Rdata")
+tesseract_words_cleaned <- lapply(tesseract_onelines,clean_text)
+save(tesseract_words_cleaned,file="../output/tesseract_words_cleaned.Rdata")
 # load("../output/ground_truth_words_cleaned.Rdata")
-```
+
 #### error detection ###########################################################
 tesseract_labels <- list()
 for (i in 1:length(tesseract_words_cleaned)) {
@@ -186,7 +192,7 @@ for (i in 1:100){
   detected_words[[i]] <- tesseract_words_cleaned[[i]][!as.logical(tesseract_labels[[i]])]
 }
 save(detected_words,file="../output/detected_words.Rdata")
-
+```
 
 # Step 4 - Error correction
 
@@ -214,7 +220,7 @@ Here, in our code, we just simply remove the detected-errors.
 
 
 
-```{r}
+```{r, warning=FALSE}
 library(tm)
 files <- lapply(ground_truth_file_path,readLines)
 docs <- Corpus(VectorSource(files))
@@ -260,7 +266,7 @@ Both *precision* and *recall* are mathematically convenient measures because the
 
 Here, we only finished the **word level evaluation** criterions, you are required to complete the **letter-level** part.
 
-```{r}
+```{r, warning=FALSE}
 ### delete error words in tesseract
 load("../output/tesseract_words_cleaned.Rdata")
 load("../output/tesseract_labels.Rdata")
