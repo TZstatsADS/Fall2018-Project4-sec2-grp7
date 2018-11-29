@@ -220,7 +220,7 @@ Here, in our code, we just simply remove the detected-errors.
 
 
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, eval=FALSE}
 library(tm)
 files <- lapply(ground_truth_file_path,readLines)
 docs <- Corpus(VectorSource(files))
@@ -250,6 +250,10 @@ for (text in 1:100){
 
 ```
 
+```{r}
+load("../output/ground_truth_by_length.Rdata")
+load("../output/results.Rdata")
+```
 
 
 
