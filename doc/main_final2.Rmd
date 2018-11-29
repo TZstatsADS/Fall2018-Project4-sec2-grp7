@@ -112,7 +112,7 @@ The referenced papers are:
 
 3. Probabilistic techniques -- [SVM garbage detection](https://dl.acm.org/citation.cfm?doid=2034617.2034626)
 
-- features are in section 5 (you can choose not to implement ‘Levenshtein distance’ feature)
+- features are in section 5 (you can choose not to implement ‘Levenshtein distance�? feature)
 
 
 We implement the letter n-gram in our project in paper 2.  
@@ -219,8 +219,10 @@ The referenced papers are:
 
 Here, in our project, we use the topic models.
 The error correction algorithm consists of a topic model that provides information about word probabilities. We list all the candidates of an error word and calculate the probability of each candidate based on the topic model. The candidate with the highest probability will be chosen as the correct word.
-```{r, warning=FALSE, eval=FALSE}
-library(tm)
+```{r, warning=FALSE}
+Run_step4 = FALSE
+if(Run_step4 == TRUE){
+  library(tm)
 files <- lapply(ground_truth_file_path,readLines)
 docs <- Corpus(VectorSource(files))
 load("../output/ground_truth_by_length.Rdata")
@@ -244,8 +246,7 @@ for (text in 1:100){
     result[i] <- Candidate_best(detected_words_vec[[text]][i])$best
   }
   results[[text]] <- result
-}
-
+}}
 
 ```
 

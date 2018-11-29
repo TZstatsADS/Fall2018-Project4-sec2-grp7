@@ -94,6 +94,9 @@ img {
 .tabbed-pane {
   padding-top: 12px;
 }
+.html-widget {
+  margin-bottom: 20px;
+}
 button.code-folding-btn:focus {
   outline: none;
 }
@@ -338,7 +341,7 @@ source(&quot;../lib/get_text.R&quot;)</code></pre>
 <li>Probabilistic techniques – <a href="https://dl.acm.org/citation.cfm?doid=2034617.2034626">SVM garbage detection</a></li>
 </ol>
 <ul>
-<li>features are in section 5 (you can choose not to implement âLevenshtein distanceâ feature)</li>
+<li>features are in section 5 (you can choose not to implement 鈥楲evenshtein distance鈥? feature)</li>
 </ul>
 <p>We implement the letter n-gram in our project in paper 2.<br />
 The detection method is positional binary n-gram and correction method is topic model. Error detection is performed by comparing all possible bigrams of all words in Tesseract with positional binary matrix constructed from Ground Truth. If any bigrams of a word do not appear in the corresponding positional binary matrix then the word is classified as error.</p>
@@ -442,7 +445,9 @@ save(detected_words,file=&quot;../output/detected_words.Rdata&quot;)</code></pre
 <li><a href="https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&amp;arnumber=4377099">topic models</a></li>
 </ol>
 <p>Here, in our project, we use the topic models. The error correction algorithm consists of a topic model that provides information about word probabilities. We list all the candidates of an error word and calculate the probability of each candidate based on the topic model. The candidate with the highest probability will be chosen as the correct word.</p>
-<pre class="r"><code>library(tm)
+<pre class="r"><code>Run_step4 = FALSE
+if(Run_step4 == TRUE){
+  library(tm)
 files &lt;- lapply(ground_truth_file_path,readLines)
 docs &lt;- Corpus(VectorSource(files))
 load(&quot;../output/ground_truth_by_length.Rdata&quot;)
@@ -466,7 +471,7 @@ for (text in 1:100){
     result[i] &lt;- Candidate_best(detected_words_vec[[text]][i])$best
   }
   results[[text]] &lt;- result
-}</code></pre>
+}}</code></pre>
 <pre class="r"><code>load(&quot;../output/ground_truth_by_length.Rdata&quot;)
 load(&quot;../output/results.Rdata&quot;)</code></pre>
 </div>
@@ -602,7 +607,7 @@ kable(OCR_performance_table, caption=&quot;Summary of OCR performance&quot;)</co
 <p>We can see that after error detection, the ratio of correct words in all ground truth words or tesseract words is larger, which means we do detect the true error words. But the topic model doesn’t do so well in the correction step. Since the ratios are not as high as the ratios after error detection, but they are larger than OCR. We think that is because LDA automatically process the words to its oringinal form and we can’t correct the words to their other forms. For exapmle, when we detect “tltles” as an error word, we can’t correct it to “titles” because in topic model we only have word “title” in the dictionary.</p>
 <p>Besides the above required measurement, you are encouraged the explore more evaluation measurements. Here are some related references:</p>
 <ol style="list-style-type: decimal">
-<li>Karpinski, R., Lohani, D., &amp; BelaÃ¯d, A. <em>Metrics for Complete Evaluation of OCR Performance</em>. <a href="https://csce.ucmss.com/cr/books/2018/LFS/CSREA2018/IPC3481.pdf">pdf</a></li>
+<li>Karpinski, R., Lohani, D., &amp; Bela茂d, A. <em>Metrics for Complete Evaluation of OCR Performance</em>. <a href="https://csce.ucmss.com/cr/books/2018/LFS/CSREA2018/IPC3481.pdf">pdf</a></li>
 </ol>
 <ul>
 <li>section 2.1 Text-to-Text evaluation</li>
