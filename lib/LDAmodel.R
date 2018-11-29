@@ -3,6 +3,8 @@
 ########################
 
 LDA_MODEL<-function(text){
+  the_path = '../data/ground_truth/'
+  filenames <- list.files(path = the_path, pattern="*.txt")
   #Remove punctuation - replace punctuation marks with " "
   docs <- tm_map(text, removePunctuation)
   #Transform to lower case
