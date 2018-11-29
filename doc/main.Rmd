@@ -237,6 +237,7 @@ Here, we only finished the **word level evaluation** criterions, you are require
 
 ```{r}
 ### delete error words in tesseract
+split_char <- function(vec){length(unlist(strsplit(vec, "")))}
 tesseract_delete_error <- list()
 for (i in 1:100){
   tesseract_delete_error[[i]] <- tesseract_words_cleaned[[i]][as.logical(tesseract_labels[[i]])]
@@ -246,7 +247,6 @@ for (i in 1:100){
 ### performance table -- mean of 100 documents
 ### wordwise
 ground_truth_list <- lapply(ground_truth_onelines,clean_text)
-# save(ground_truth_list, file="../output/ground_truth_list.Rdata")
 tesseract_list <- tesseract_words_cleaned
 tesseract_delete_error_list <- tesseract_delete_error
 
@@ -268,17 +268,33 @@ word_wise_recall_tesseract <- rep(0,100)
 word_wise_precision_tesseract <- rep(0,100)
 word_wise_recall_postprocessing <- rep(0,100)
 word_wise_precision_postprocessing <- rep(0,100)
+
+character_wise_recall_tesseract<-rep(0,100)
+character_wise_precision_tesseract<-rep(0,100)
+character_wise_recall_postprocessing<-rep(0,100)
+character_wise_precision_postprocessing<-rep(0,100)
+
 for (i in 1:100){
   word_wise_recall_tesseract[i] <- length(old_intersect_list[[i]])/length(ground_truth_list[[i]])
   word_wise_precision_tesseract[i] <- length(old_intersect_list[[i]])/length(tesseract_list[[i]])
   word_wise_recall_postprocessing[i] <- length(new_intersect_list[[i]])/length(ground_truth_list[[i]])
   word_wise_precision_postprocessing[i] <- length(new_intersect_list[[i]])/length(tesseract_delete_error_list[[i]])
+  
+  character_wise_recall_tesseract[i]<-split_char(old_intersect_list[[i]])/split_char(ground_truth_list[[i]])
+  character_wise_precision_tesseract<-split_char(old_intersect_list[[i]])/split_char(tesseract_list[[i]])
+  character_wise_recall_postprocessing<-split_char(new_intersect_list[[i]])/split_char(ground_truth_list[[i]])
+  character_wise_precision_postprocessing<-split_char(new_intersect_list[[i]])/split_char(tesseract_delete_error_list[[i]])
 }
 
 OCR_performance_table["word_wise_recall","Tesseract"] <- mean(word_wise_recall_tesseract)
 OCR_performance_table["word_wise_precision","Tesseract"] <- mean(word_wise_precision_tesseract)
 OCR_performance_table["word_wise_recall","Tesseract_with_postprocessing"] <- mean(word_wise_recall_postprocessing)
 OCR_performance_table["word_wise_precision","Tesseract_with_postprocessing"] <- mean(word_wise_precision_postprocessing)
+
+OCR_performance_table["character_wise_recall","Tesseract"] <- mean(character_wise_recall_tesseract)
+OCR_performance_table["character_wise_precision","Tesseract"] <- mean(character_wise_precision_tesseract)
+OCR_performance_table["character_wise_recall","Tesseract_with_postprocessing"] <- mean(character_wise_recall_postprocessing)
+OCR_performance_table["character_wise_precision","Tesseract_with_postprocessing"] <- mean(character_wise_precision_postprocessing)
 kable(OCR_performance_table, caption="Summary of OCR performance")
 ```
 
